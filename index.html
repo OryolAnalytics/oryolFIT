@@ -747,6 +747,22 @@ tbody tr.click:hover{background:var(--panel2)}
       <h2>Trainingstage pro Woche</h2>
       <div class="chartbox sm"><canvas id="chDays"></canvas></div>
     </div>
+
+    <div class="panel">
+      <div class="panelhd">
+        <h2 style="margin:0">Pausen</h2>
+        <div class="stat" id="restWin">
+          <button class="on" data-rwin="28">4 Wochen</button>
+          <button data-rwin="84">12 Wochen</button>
+          <button data-rwin="0">Alles</button>
+        </div>
+      </div>
+      <div class="kpis" id="restKpis"></div>
+      <div id="restNote" style="margin-top:14px"></div>
+      <div class="scroll" style="margin-top:14px"><table id="tblRest">
+        <thead><tr><th>Übung</th><th>Ø Pause</th><th>Längste</th><th>Sätze</th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
   </section>
 
   <!-- ============================= RECHNER ============================= -->
@@ -855,9 +871,13 @@ tbody tr.click:hover{background:var(--panel2)}
       <h2 style="margin-top:22px">Eingabefelder</h2>
       <div class="chips" id="fieldSel">
         <div class="chip" data-field="rir">RIR erfassen</div>
-        <div class="chip" data-field="rest">Pausenzeit erfassen</div>
-        <div class="chip" data-field="timer">Ruhe-Uhr automatisch starten</div>
+        <div class="chip" data-field="timer">Pausenuhr anzeigen</div>
       </div>
+      <p class="mut" style="font-size:12.5px;line-height:1.6;margin:12px 0 0">
+        Die Pausenzeit wird immer mitgeschrieben — sie ergibt sich aus dem Abstand
+        zwischen zwei eingetragenen Sätzen und braucht die Uhr nicht. Dieser Schalter
+        bestimmt nur, ob die Uhr unten am Bildschirm mitläuft.
+      </p>
       <p class="mut" style="font-size:12.5px;line-height:1.6;margin:12px 0 0">
         RIR heißt „reps in reserve" — wie viele Wiederholungen du am Satzende noch
         geschafft hättest. Das Feld ist ab Werk ausgeblendet, damit die Eingabe im
@@ -915,9 +935,8 @@ tbody tr.click:hover{background:var(--panel2)}
 
 <div id="restbar">
   <div class="rt" id="restTime">0:00</div>
-  <div class="rl" id="restLabel">Pause</div>
-  <button id="restPlus">+30 s</button>
-  <button id="restStop">Fertig</button>
+  <div class="rl" id="restLabel">Pause läuft</div>
+  <button id="restStop">Weiter</button>
 </div>
 <script>
 /* ==========================================================================
@@ -1110,14 +1129,14 @@ const DIST_TYPES = ['lauf','rad','rudern','schwimmen','gehen'];
 const LSKEY = 'ofit_db';
 const LSSYNC = 'ofit_sync';
 
-const DEFAULT_SETTINGS = {theme:'auto', unit:'kg', fields:{rir:false, rest:false, timer:true}};
+const DEFAULT_SETTINGS = {theme:'auto', unit:'kg', fields:{rir:false, timer:true}};
 
 let S = {
   ex:[], ses:[], car:[], tpl:[], goals:[], body:[], revs:[],
   week:{}, block:null, profile:{}, settings:Object.assign({}, DEFAULT_SETTINGS),
   activeId:null,
   tab:'dashboard', dashWin:84, volWin:1, calDate:new Date(), revMon:mondayOf(todayISO()),
-  progEx:null, bodyMode:'week', charts:{}, lastSync:0, dirty:false
+  progEx:null, bodyMode:'week', restWin:28, charts:{}, lastSync:0, dirty:false
 };
 
 /* Sammlungen, die synchronisiert werden: Schlüssel → Kürzel in der Tabelle */
@@ -1329,6 +1348,71 @@ function randomKey(){
 /* ==========================================================================
    Rechnen — alles, was aus den rohen Sätzen abgeleitet wird
    ========================================================================== */
+
+/* ---------- Pausen ----------
+   Gemessen wird der Abstand zwischen zwei eingetragenen Sätzen. Alles über
+   dieser Grenze gilt als Unterbrechung — ein Telefonat oder eine Fahrt nach
+   Hause soll den Schnitt nicht verfälschen.                                */
+const REST_CAP = 600;                 /* zehn Minuten */
+const REST_MIN = 5;                   /* darunter war es keine Pause, sondern Nachtragen */
+
+function sessionRest(s){
+  const v = (s.sets || []).map(x => num(x.rest)).filter(x => x > 0);
+  const total = v.reduce((a,b) => a + b, 0);
+  return {n:v.length, total:total, avg: v.length ? total / v.length : null,
+    longest: v.length ? Math.max.apply(null, v) : 0};
+}
+
+/* Kennzahlen über mehrere Trainings hinweg */
+function restStats(sessions){
+  let sumSet = 0, nSet = 0, sumSess = 0, nSess = 0, longest = 0, share = [];
+  for(const s of sessions){
+    const r = sessionRest(s);
+    if(!r.n) continue;
+    sumSet += r.total; nSet += r.n;
+    sumSess += r.total; nSess++;
+    longest = Math.max(longest, r.longest);
+    if(s.start && s.end && s.end > s.start){
+      const dur = (s.end - s.start) / 1000;
+      if(dur > 0 && r.total <= dur) share.push(r.total / dur);
+    }
+  }
+  return {
+    avgSet: nSet ? sumSet / nSet : null,
+    avgSession: nSess ? sumSess / nSess : null,
+    sessions:nSess, sets:nSet, longest:longest, total:sumSet,
+    share: share.length ? share.reduce((a,b) => a+b, 0) / share.length : null
+  };
+}
+
+function restByExercise(sessions){
+  const map = {};
+  for(const s of sessions){
+    for(const x of (s.sets || [])){
+      const v = num(x.rest);
+      if(!(v > 0)) continue;
+      (map[x.ex] = map[x.ex] || []).push(v);
+    }
+  }
+  return Object.keys(map).map(id => {
+    const v = map[id];
+    return {ex:id, n:v.length, avg:v.reduce((a,b) => a+b, 0)/v.length,
+      longest:Math.max.apply(null, v)};
+  }).sort((a,b) => b.avg - a.avg);
+}
+
+/* Sekunden lesbar: kurz als Sekunden, länger als Minuten:Sekunden */
+function secTxt(sec){
+  if(sec == null || !isFinite(sec)) return '–';
+  sec = Math.round(sec);
+  if(sec < 90) return sec + ' s';
+  return mmss(sec) + ' min';
+}
+/* Summen: unter anderthalb Minuten sekundengenau, darüber in Minuten */
+function durTxt(sec){
+  if(sec == null || !isFinite(sec) || sec <= 0) return '–';
+  return sec < 90 ? Math.round(sec) + ' s' : hhmm(sec/60);
+}
 
 /* Arbeitssätze eines Trainings (Aufwärmsätze zählen nicht ins Volumen) */
 function workSets(s){ return (s.sets || []).filter(x => x.t !== 'w' && num(x.w) >= 0 && num(x.r) > 0); }
@@ -1550,35 +1634,33 @@ function confirmSheet(title, text, okLabel, onOk){
     });
 }
 
-/* ---------- Ruhe-Uhr ---------- */
+/* ---------- Pausenuhr ----------
+   Zählt von null aufwärts und wartet, bis du weitermachst. Kein Countdown,
+   kein Vibrieren: Eine Pause ist zu Ende, wenn du bereit bist, nicht wenn
+   eine Zahl abgelaufen ist. Gemessen wird die Pause ohnehin unabhängig von
+   dieser Uhr — sie ist reine Anzeige.                                      */
 const REST = {
-  end:0, timer:null,
-  start(sec){
+  from:0, timer:null,
+  begin(){
     if(!S.settings.fields.timer) return;
-    this.end = Date.now() + sec*1000;
+    this.from = Date.now();
     $('#restbar').classList.add('on');
     document.body.style.paddingBottom = '86px';   /* Leiste verdeckt sonst den letzten Knopf */
     this.tick();
     clearInterval(this.timer);
-    this.timer = setInterval(() => this.tick(), 250);
+    this.timer = setInterval(() => this.tick(), 500);
   },
   tick(){
-    const left = (this.end - Date.now())/1000;
-    $('#restTime').textContent = mmss(Math.abs(left));
-    $('#restLabel').textContent = left > 0 ? 'Pause läuft' : 'Pause vorbei';
-    if(left <= 0 && left > -1){
-      try{ navigator.vibrate && navigator.vibrate([120,60,120]); }catch(e){}
-    }
-    if(left < -120) this.stop();
+    const sec = (Date.now() - this.from)/1000;
+    $('#restTime').textContent = mmss(sec);
+    $('#restLabel').textContent = sec > REST_CAP ? 'Pause — unterbrochen?' : 'Pause läuft';
   },
-  add(sec){ this.end += sec*1000; this.tick(); },
   stop(){
     clearInterval(this.timer); this.timer = null;
     $('#restbar').classList.remove('on');
     document.body.style.paddingBottom = '';
   }
 };
-$('#restPlus').onclick = () => REST.add(30);
 $('#restStop').onclick = () => REST.stop();
 
 /* ==========================================================================
@@ -1610,11 +1692,13 @@ function renderWorkout(){
   $('#woTitle').textContent = a.name || 'Training';
   const vol = sessionVolume(a), sets = sessionSetCount(a);
   const mins = a.start ? Math.round((Date.now() - a.start)/60000) : 0;
+  const rest = sessionRest(a);
   $('#woKpis').innerHTML =
     kpi('Sätze', sets, (a.sets||[]).length - sets ? ((a.sets||[]).length - sets) + ' Aufwärmsätze' : '') +
     kpi('Volumen', kg(vol, 0), '') +
     kpi('Übungen', new Set((a.sets||[]).map(x => x.ex)).size, '') +
-    kpi('Dauer', mins + ' min', fmtDate(a.date));
+    kpi('Dauer', mins + ' min', fmtDate(a.date)) +
+    kpi('Ø Pause', secTxt(rest.avg), rest.n ? 'über ' + rest.n + ' Pausen' : 'noch keine');
 
   /* Übungsblöcke */
   const order = [];
@@ -1735,8 +1819,21 @@ function wireBlocks(a){
       };
       row.querySelector('.sw').addEventListener('change', commit);
       row.querySelector('.sr').addEventListener('change', () => {
+        const vorher = num(a.sets[i].r);
         commit();
-        if(a.sets[i].t !== 'w' && num(a.sets[i].r) > 0) REST.start(150);
+        const nachher = num(a.sets[i].r);
+        /* Nur ein frisch abgeschlossener Satz zählt als Zeitpunkt — beim
+           Nachbessern einer alten Zahl darf keine Pause entstehen.         */
+        if(nachher > 0 && vorher === 0){
+          const jetzt = Date.now();
+          if(a.lastSetAt && a.sets[i].t !== 'w'){
+            const sek = Math.round((jetzt - a.lastSetAt) / 1000);
+            if(sek >= REST_MIN && sek <= REST_CAP) a.sets[i].rest = sek;
+          }
+          a.lastSetAt = jetzt;
+          put('ses', a);
+          REST.begin();
+        }
         renderWorkout();
       });
       const rirEl = row.querySelector('.sir');
@@ -1888,6 +1985,11 @@ function showExercise(id){
       kpi('Einheiten', rows.length, totalSets + ' Arbeitssätze') +
       kpi('Gesamtvolumen', kg(totalVol, 0),
           n0(rows.reduce((a,r) => a + r.reps, 0)) + ' Wiederholungen') +
+      (() => {
+        const rb = restByExercise(live('ses').filter(x => x.done)).find(x => x.ex === id);
+        return kpi('Ø Pause', rb ? secTxt(rb.avg) : '–',
+          rb ? 'über ' + rb.n + ' Pausen' : 'noch nicht erfasst');
+      })() +
     '</div>' +
     '<div class="chartbox" style="margin-top:16px"><canvas id="chEx"></canvas></div>' +
     '<p class="mut" style="font-size:12.5px;line-height:1.6;margin:10px 0 0">' +
@@ -2345,9 +2447,15 @@ function showSession(id){
     const rows = byEx[exId].map((x,i) =>
       '<div class="dl"><span>' + (x.t === 'w' ? 'Aufwärmen' : 'Satz ' + (i+1)) + '</span>' +
       '<span>' + kg(num(x.w)) + ' × ' + num(x.r) +
-      (x.rir != null ? ' <span class="mut">· RIR ' + x.rir + '</span>' : '') + '</span></div>').join('');
+      (x.rir != null ? ' <span class="mut">· RIR ' + x.rir + '</span>' : '') +
+      (num(x.rest) ? ' <span class="mut">· ' + secTxt(num(x.rest)) + ' Pause</span>' : '') +
+      '</span></div>').join('');
     return '<div style="margin:14px 0 4px;font-weight:650">' + esc(exName(exId)) + '</div>' + rows;
   }).join('');
+
+  const rest = sessionRest(s);
+  const dauer = (s.start && s.end && s.end > s.start) ? (s.end - s.start)/1000 : null;
+  const arbeit = (dauer != null && rest.total <= dauer) ? dauer - rest.total : null;
 
   sheet('<h3>' + esc(s.name || 'Training') + '</h3>' +
     '<div class="mut" style="font-size:13px;margin-bottom:10px">' + fmtDay(s.date) + ' · ' +
@@ -2356,6 +2464,14 @@ function showSession(id){
       kpi('Volumen', kg(sessionVolume(s), 0), '') +
       kpi('Sätze', sessionSetCount(s), '') +
       kpi('Wiederholungen', sessionReps(s), '') +
+      (dauer != null ? kpi('Dauer', durTxt(dauer),
+        arbeit != null ? durTxt(arbeit) + ' davon Arbeit' : '') : '') +
+      kpi('Pause gesamt', durTxt(rest.total),
+          arbeit != null && rest.total
+            ? Math.round(rest.total/dauer*100) + ' % der Trainingszeit' : '') +
+      kpi('Ø Pause', secTxt(rest.avg),
+          rest.n ? 'zwischen ' + rest.n + ' Sätzen' : 'nicht erfasst') +
+      (rest.longest ? kpi('Längste Pause', secTxt(rest.longest), '') : '') +
       (s.bw ? kpi('Körpergewicht', kg(s.bw), '') : '') +
     '</div>' + blocks +
     (s.note ? '<div class="note" style="margin-top:14px;white-space:pre-wrap">' + esc(s.note) + '</div>' : '') +
@@ -2404,15 +2520,15 @@ function wireLog(){
   $('#logCsv').onclick = exportCsv;
 }
 function exportCsv(){
-  const rows = [['Datum','Art','Name','Übung','Satz','Gewicht_kg','Wdh','Typ','RIR',
+  const rows = [['Datum','Art','Name','Übung','Satz','Gewicht_kg','Wdh','Typ','RIR','Pause_s',
     'Dauer_min','Distanz_km','HF_avg','RPE','Notiz']];
   for(const s of live('ses').filter(x => x.done)){
     (s.sets||[]).forEach((x,i) => rows.push([s.date,'Kraft',s.name,exName(x.ex),i+1,
       n1(num(x.w)),num(x.r),x.t === 'w' ? 'Aufwärmen':'Arbeit',x.rir != null ? x.rir : '',
-      '','','','',(s.note||'').replace(/[\r\n]+/g,' ')]));
+      num(x.rest) || '','','','','',(s.note||'').replace(/[\r\n]+/g,' ')]));
   }
   for(const c of live('car')) rows.push([c.date,'Cardio',CARDIO_TYPES[c.type]||'',
-    '','','','','','',num(c.dur),num(c.dist)||'',num(c.avgHr)||'',num(c.rpe)||'',
+    '','','','','','','',num(c.dur),num(c.dist)||'',num(c.avgHr)||'',num(c.rpe)||'',
     (c.note||'').replace(/[\r\n]+/g,' ')]);
   const csv = rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"').join(';')).join('\n');
   dl('oryol-fit-' + todayISO() + '.csv', '﻿' + csv, 'text/csv;charset=utf-8');
@@ -3330,6 +3446,59 @@ function renderLoad(){
   });
 }
 
+/* ---------- Pausen über alle Trainings ---------- */
+function renderRest(){
+  const win = S.restWin == null ? 28 : S.restWin;
+  const from = win ? addDays(todayISO(), -win) : '0000-01-01';
+  const ss = live('ses').filter(s => s.done && s.date >= from);
+  const st = restStats(ss);
+
+  $('#restKpis').innerHTML =
+    kpi('Ø zwischen den Sätzen', secTxt(st.avgSet),
+        st.sets ? st.sets + ' Pausen erfasst' : 'noch nichts erfasst') +
+    kpi('Ø pro Training', durTxt(st.avgSession),
+        st.sessions ? 'aus ' + st.sessions + (st.sessions === 1 ? ' Einheit' : ' Einheiten') : '') +
+    kpi('Anteil der Trainingszeit', st.share == null ? '–' : Math.round(st.share*100) + ' %',
+        'des gesamten Trainings') +
+    kpi('Längste Pause', st.longest ? secTxt(st.longest) : '–', '') +
+    kpi('Pause insgesamt', durTxt(st.total), win ? 'in ' + win + ' Tagen' : 'gesamt');
+
+  if(!st.sets){
+    $('#restNote').innerHTML = '<div class="note">Die Pause wird ab jetzt automatisch ' +
+      'mitgeschrieben: Sie ergibt sich aus dem Abstand zwischen zwei eingetragenen Sätzen. ' +
+      'Trainings von früher haben deshalb keine Werte. Abstände über zehn Minuten gelten ' +
+      'als Unterbrechung und zählen nicht mit.</div>';
+  }else{
+    const a = st.avgSet;
+    const txt = a < 60
+      ? 'Deine Pausen sind kurz. Das hält den Puls oben und spart Zeit, kostet aber bei ' +
+        'schweren Grundübungen Kraft im nächsten Satz — für Muskelaufbau in Ordnung, ' +
+        'für Maximalkraft eher knapp.'
+      : a <= 180
+        ? 'Deine Pausen liegen im üblichen Bereich. Für Hypertrophie sind ein bis zwei ' +
+          'Minuten gängig, für schwere Grundübungen eher zwei bis drei.'
+        : 'Deine Pausen sind lang. Für schwere Sätze ist das richtig — wenn dir das ' +
+          'Training insgesamt zu lange dauert, liegt hier der größte Hebel.';
+    $('#restNote').innerHTML = '<div class="note">' + txt + '</div>';
+  }
+
+  const byEx = restByExercise(ss).filter(x => x.n >= 2).slice(0, 12);
+  $('#tblRest').closest('.scroll').classList.toggle('hide', !byEx.length);
+  $('#tblRest').querySelector('tbody').innerHTML = byEx.map(x =>
+    '<tr class="click" data-e="' + x.ex + '"><td>' + esc(exName(x.ex)) + '</td>' +
+    '<td><b>' + secTxt(x.avg) + '</b></td>' +
+    '<td class="mut">' + secTxt(x.longest) + '</td>' +
+    '<td class="mut">' + x.n + '</td></tr>').join('');
+  $$('#tblRest [data-e]').forEach(el => el.onclick = () => showExercise(el.dataset.e));
+}
+function wireRest(){
+  $$('#restWin [data-rwin]').forEach(b => b.onclick = () => {
+    S.restWin = num(b.dataset.rwin);
+    $$('#restWin [data-rwin]').forEach(o => o.classList.toggle('on', o === b));
+    renderRest();
+  });
+}
+
 /* ==========================================================================
    Rechner
    ========================================================================== */
@@ -3842,6 +4011,7 @@ function renderAll(){
     renderReview();
     renderVolume();
     renderLoad();
+    renderRest();
     renderBody();
     if(S.tab === 'progress') renderProgress();
     if(S.tab === 'settings') renderSettings();
@@ -3868,7 +4038,7 @@ function boot(){
 
   wireWorkout(); wireExercises(); wireLog(); wireCardio();
   wireTemplates(); wireCalendar(); wireGoals(); wireReview();
-  wireVolume(); wireProgress(); wireCalc(); wireBody(); wireSettings();
+  wireVolume(); wireProgress(); wireRest(); wireCalc(); wireBody(); wireSettings();
 
   $$('#v-dashboard [data-dash]').forEach(b => b.onclick = () => {
     S.dashWin = num(b.dataset.dash);
