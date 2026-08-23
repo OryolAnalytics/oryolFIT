@@ -127,6 +127,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .kpi .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .kpi .v{font-size:20px;font-weight:650;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
 .kpi .s{font-size:11px;color:var(--muted);margin-top:3px}
+/* Kennzahlenreihen, die frei in einer Ansicht stehen statt in einer Tafel,
+   brauchen denselben Abstand nach unten wie eine Tafel.                     */
+#dashTop{margin-top:2px;margin-bottom:14px}
 .up{color:var(--up)} .down{color:var(--down)} .mut{color:var(--muted)} .warn{color:var(--warn)}
 .chartbox{position:relative;height:280px}
 .chartbox.sm{height:230px}
@@ -798,16 +801,27 @@ tbody tr.click:hover{background:var(--panel2)}
         <button class="primary" id="bodyNew">+ Messung</button>
       </div>
       <div class="kpis" id="bodyKpis"></div>
+      <div id="bodyNudge" class="hide"></div>
     </div>
 
     <div class="panel">
-      <h2>Gewichtsverlauf</h2>
+      <div class="panelhd">
+        <h2 style="margin:0">Gewichtsverlauf</h2>
+        <div class="stat" id="bodyMode">
+          <button class="on" data-bmode="week">Wöchentlich</button>
+          <button data-bmode="all">Jede Messung</button>
+        </div>
+      </div>
       <div class="chartbox"><canvas id="chBody"></canvas></div>
-      <p class="mut" style="font-size:12.5px;line-height:1.6;margin:10px 0 0">
-        Die dünne Linie ist die Tagesmessung, die kräftige der gleitende Schnitt über
-        sieben Tage. Nur die kräftige Linie sagt etwas über den Trend — die tägliche
-        Schwankung ist Wasser, Salz und Darminhalt.
-      </p>
+      <p class="mut" style="font-size:12.5px;line-height:1.6;margin:10px 0 0" id="bodyNote"></p>
+    </div>
+
+    <div class="panel" id="weekPanel">
+      <h2>Woche für Woche</h2>
+      <div class="scroll"><table id="tblWeek">
+        <thead><tr><th>Woche</th><th>Schnitt</th><th>Veränderung</th><th>Seit Start</th>
+          <th>Messungen</th></tr></thead>
+        <tbody></tbody></table></div>
     </div>
 
     <div class="panel">
@@ -1103,7 +1117,7 @@ let S = {
   week:{}, block:null, profile:{}, settings:Object.assign({}, DEFAULT_SETTINGS),
   activeId:null,
   tab:'dashboard', dashWin:84, volWin:1, calDate:new Date(), revMon:mondayOf(todayISO()),
-  progEx:null, charts:{}, lastSync:0, dirty:false
+  progEx:null, bodyMode:'week', charts:{}, lastSync:0, dirty:false
 };
 
 /* Sammlungen, die synchronisiert werden: Schlüssel → Kürzel in der Tabelle */
@@ -1434,6 +1448,24 @@ function prOf(exId){
   return {weight:bw, reps:br, e1rm:be, last, bestSet:bwSet};
 }
 
+/* Verlauf einer Übung: eine Zeile je Training, älteste zuerst.
+   Das ist die Grundlage sowohl für die Kurve als auch für die Tabellen.    */
+function exerciseHistory(exId){
+  const out = [];
+  for(const s of live('ses').filter(x => x.done).sort((a,b) => a.date < b.date ? -1 : 1)){
+    const mine = workSets(s).filter(x => x.ex === exId);
+    if(!mine.length) continue;
+    const top = mine.reduce((a,b) => num(b.w) > num(a.w) ? b : a);
+    out.push({
+      date:s.date, sid:s.id, sets:mine.length, top:top,
+      reps:mine.reduce((a,x) => a + num(x.r), 0),
+      vol:mine.reduce((a,x) => a + num(x.w)*num(x.r), 0),
+      e:bestE1rm(mine)
+    });
+  }
+  return out;
+}
+
 /* Letzte Ausführung einer Übung — im Studio das wichtigste Feld überhaupt */
 function lastPerformance(exId, exceptId){
   const done = live('ses').filter(s => s.done && s.id !== exceptId)
@@ -1497,7 +1529,14 @@ function sheet(html, onOpen){
   if(onOpen) onOpen(s);
   return s;
 }
-function closeSheet(){ $('#modal').classList.remove('on'); }
+function closeSheet(){
+  $('#modal').classList.remove('on');
+  $('#sheet').innerHTML = '';
+  /* Diagramme, deren Zeichenfläche mit dem Blatt verschwunden ist, freigeben */
+  for(const id in S.charts){
+    if(!document.getElementById(id)){ S.charts[id].destroy(); delete S.charts[id]; }
+  }
+}
 $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeSheet(); });
 
 function confirmSheet(title, text, okLabel, onOk){
@@ -1795,6 +1834,94 @@ function editExercise(id, presetName, onSave){
   });
 }
 
+/* ---------- Statistik einer einzelnen Übung ----------
+   Aufgebaut wie die Trade-Ansicht im Trading-Journal: oben die Kennzahlen,
+   darunter die Kurve, darunter die einzelnen Einträge.                     */
+function showExercise(id){
+  const e = byId('ex', id);
+  if(!e) return;
+  const rows = exerciseHistory(id);
+  const pr = prOf(id);
+
+  if(!rows.length){
+    sheet('<h3>' + esc(e.name) + '</h3>' +
+      '<div class="mut" style="font-size:13px;margin-bottom:4px">' +
+        esc(MUSCLES[e.m] ? MUSCLES[e.m].l : '') + ' · ' + esc(EQUIP[e.eq] || '') + '</div>' +
+      '<div class="empty-state">Diese Übung wurde noch nie trainiert. Sobald der erste ' +
+      'Satz steht, entsteht hier die Kurve.</div>' +
+      '<div class="sact"><button id="xEdit">Bearbeiten</button>' +
+      '<button class="primary" id="xClose">Schließen</button></div>',
+      s => {
+        s.querySelector('#xClose').onclick = closeSheet;
+        s.querySelector('#xEdit').onclick = () => { closeSheet(); editExercise(id); };
+      });
+    return;
+  }
+
+  const first = rows[0], last = rows[rows.length-1];
+  const dW = num(last.top.w) - num(first.top.w);
+  const dE = last.e - first.e;
+  const totalVol = rows.reduce((a,r) => a + r.vol, 0);
+  const totalSets = rows.reduce((a,r) => a + r.sets, 0);
+  const days = daysBetween(first.date, last.date);
+  const perMonth = days > 20 ? dW / (days/30) : null;
+
+  const recent = rows.slice(-8).reverse().map(r =>
+    '<div class="dl"><span>' + fmtDate(r.date) + ' <span class="mut">· ' + r.sets + ' Sätze</span></span>' +
+    '<span><b>' + kg(num(r.top.w)) + ' × ' + num(r.top.r) + '</b>' +
+    ' <span class="mut">· ' + kg(r.e, 0) + ' e1RM</span></span></div>').join('');
+
+  sheet('<h3>' + esc(e.name) + '</h3>' +
+    '<div class="mut" style="font-size:13px;margin-bottom:12px">' +
+      esc(MUSCLES[e.m] ? MUSCLES[e.m].l : '') +
+      (e.m2 && e.m2.length ? ' · ' + e.m2.map(k => MUSCLES[k] ? MUSCLES[k].l : '').join(', ') : '') +
+      ' · ' + esc(EQUIP[e.eq] || '') + '</div>' +
+    '<div class="kpis">' +
+      kpi('Bestes Gewicht', kg(pr.weight), pr.bestSet ? pr.bestSet.r + ' Wdh · ' + fmtDate(pr.bestSet.date) : '') +
+      kpi('Aktuell', kg(num(last.top.w)), fmtDate(last.date)) +
+      kpi('Zuwachs', (dW >= 0 ? '+' : '−') + kg(Math.abs(dW)),
+          'seit ' + fmtDate(first.date) +
+          (perMonth != null ? ' · ' + (perMonth >= 0 ? '+' : '−') + kg(Math.abs(perMonth)) + '/Monat' : ''),
+          dW > 0 ? 'up' : (dW < 0 ? 'down' : 'mut')) +
+      kpi('Bestes e1RM', kg(pr.e1rm, 0),
+          (dE >= 0 ? '+' : '−') + kg(Math.abs(dE), 0) + ' seit Start') +
+      kpi('Einheiten', rows.length, totalSets + ' Arbeitssätze') +
+      kpi('Gesamtvolumen', kg(totalVol, 0),
+          n0(rows.reduce((a,r) => a + r.reps, 0)) + ' Wiederholungen') +
+    '</div>' +
+    '<div class="chartbox" style="margin-top:16px"><canvas id="chEx"></canvas></div>' +
+    '<p class="mut" style="font-size:12.5px;line-height:1.6;margin:10px 0 0">' +
+      'Die kräftige Linie ist das schwerste Arbeitsgewicht des jeweiligen Trainings. ' +
+      'Die gestrichelte ist die geschätzte Maximalkraft — sie steigt auch dann, wenn du ' +
+      'beim selben Gewicht mehr Wiederholungen schaffst.</p>' +
+    '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 2px">' +
+      'Letzte Trainings</div>' + recent +
+    '<div class="sact">' +
+      '<button id="xEdit">Bearbeiten</button>' +
+      '<button id="xFull">Alle Sätze ansehen</button>' +
+      '<button class="primary" id="xClose">Schließen</button></div>',
+    s => {
+      s.querySelector('#xClose').onclick = closeSheet;
+      s.querySelector('#xEdit').onclick = () => { closeSheet(); editExercise(id); };
+      s.querySelector('#xFull').onclick = () => {
+        closeSheet(); S.progEx = id; switchTab('progress'); renderProgress(); window.scrollTo(0,0);
+      };
+      chart('chEx', {
+        data:{labels:rows.map(r => fmtDate(r.date)), datasets:[
+          {type:'line', label:'Arbeitsgewicht',
+           data:rows.map(r => Math.round(kgOut(num(r.top.w))*10)/10),
+           borderColor:cssVar('--acc'), backgroundColor:cssVar('--acc') + '18', fill:true,
+           borderWidth:2.5, tension:.25, pointRadius:2.5, yAxisID:'y'},
+          {type:'line', label:'e1RM', data:rows.map(r => Math.round(kgOut(r.e))),
+           borderColor:cssVar('--muted'), backgroundColor:'transparent', borderWidth:1.5,
+           borderDash:[4,3], tension:.25, pointRadius:0, yAxisID:'y'}
+        ]},
+        options:{plugins:{legend:{display:true, position:'bottom'}},
+          scales:{y:{beginAtZero:false}}}
+      });
+    });
+}
+
 /* ---------- Training starten / beenden ---------- */
 function startSession(date, name, tplId){
   const s = {id:uid(), date:date || todayISO(), name:name || 'Training', tpl:tplId || null,
@@ -1833,6 +1960,7 @@ function suggestFor(item){
 function finishSession(){
   const a = activeSession();
   if(!a) return;
+  REST.stop();                    /* mit dem Training endet auch die Pause */
   a.sets = (a.sets || []).filter(x => num(x.r) > 0);
   if(!a.sets.length){
     confirmSheet('Nichts eingetragen', 'Dieses Training hat keine Sätze. Soll es verworfen werden?',
@@ -1915,7 +2043,10 @@ function wireWorkout(){
   $('#woDiscard').onclick = () => {
     const a = activeSession(); if(!a) return;
     confirmSheet('Training verwerfen?', 'Alle Sätze dieses Trainings gehen verloren.',
-      'Verwerfen', () => { remove('ses', a.id); S.activeId = null; saveDB(); renderAll(); });
+      'Verwerfen', () => {
+        REST.stop();
+        remove('ses', a.id); S.activeId = null; saveDB(); renderAll();
+      });
   };
   $('#woRename').onclick = () => {
     const a = activeSession(); if(!a) return;
@@ -1978,7 +2109,7 @@ function renderExercises(){
       '</div></div>';
   }).join('') || '<div class="empty-state">Keine Übung gefunden.</div>';
 
-  $$('#exList [data-id]').forEach(el => el.onclick = () => editExercise(el.dataset.id));
+  $$('#exList [data-id]').forEach(el => el.onclick = () => showExercise(el.dataset.id));
 }
 function wireExercises(){
   $('#exNew').onclick = () => editExercise(null, '', () => renderAll());
@@ -3046,15 +3177,7 @@ function renderProgress(){
   sel.value = S.progEx;
 
   const exId = S.progEx;
-  const rows = [];
-  for(const s of live('ses').filter(x => x.done).sort((a,b) => a.date < b.date ? -1 : 1)){
-    const mine = workSets(s).filter(x => x.ex === exId);
-    if(!mine.length) continue;
-    const top = mine.reduce((a,b) => num(b.w) > num(a.w) ? b : a);
-    rows.push({date:s.date, sid:s.id, sets:mine.length,
-      vol:mine.reduce((a,x) => a + num(x.w)*num(x.r), 0),
-      e:bestE1rm(mine), top});
-  }
+  const rows = exerciseHistory(exId);
 
   const pr = prOf(exId);
   const first = rows[0], last = rows[rows.length-1];
@@ -3291,6 +3414,38 @@ function wireCalc(){
    ========================================================================== */
 function bodySorted(){ return live('body').slice().sort((a,b) => a.date < b.date ? -1 : 1); }
 
+/* In welche Richtung soll die Waage laut deinen Zielen?
+   −1 abnehmen, +1 zunehmen, 0 kein Ziel hinterlegt.                        */
+function bwGoalDir(){
+  const g = live('goals').find(x => x.type === 'bw' && !x.done && num(x.target));
+  if(!g) return 0;
+  const last = bodySorted().filter(r => num(r.weight)).slice(-1)[0];
+  if(!last) return 0;
+  const t = num(g.target), w = num(last.weight);
+  return t < w ? -1 : (t > w ? 1 : 0);
+}
+
+/* Wochenwerte: je Kalenderwoche der Schnitt aller Messungen dieser Woche.
+   Der Wochenschnitt ist die einzige Zahl, die beim Körpergewicht wirklich
+   etwas aussagt — Tageswerte schwanken um mehr als der Trend eines Monats. */
+function weeklyBody(){
+  const map = {};
+  for(const r of bodySorted()){
+    if(!num(r.weight)) continue;
+    const w = mondayOf(r.date);
+    (map[w] = map[w] || []).push(num(r.weight));
+  }
+  const keys = Object.keys(map).sort();
+  const out = [];
+  keys.forEach((k,i) => {
+    const avg = map[k].reduce((a,b) => a+b, 0) / map[k].length;
+    out.push({week:k, w:avg, n:map[k].length,
+      d: i > 0 ? avg - out[i-1].w : null,
+      since: avg - (map[keys[0]].reduce((a,b) => a+b, 0) / map[keys[0]].length)});
+  });
+  return out;
+}
+
 function renderBody(){
   const rows = bodySorted();
   const last = rows[rows.length-1];
@@ -3303,43 +3458,143 @@ function renderBody(){
   const h = num(S.profile.height);
   const bmi = (last && num(last.weight) && h) ? num(last.weight)/Math.pow(h/100,2) : null;
 
+  const wk = weeklyBody();
+  const thisWeek = wk.length ? wk[wk.length-1] : null;
+  const weekDelta = thisWeek ? thisWeek.d : null;
+  const avgPerWeek = wk.length > 1
+    ? (wk[wk.length-1].w - wk[0].w) / (wk.length-1) : null;
+  const sinceStart = thisWeek ? thisWeek.since : null;
+  const daysSince = last ? daysBetween(last.date, todayISO()) : null;
+
+  /* Ob Zunehmen oder Abnehmen „gut" ist, weiß nur dein Ziel. Ohne ein
+     Körpergewichts-Ziel bleibt die Anzeige deshalb bewusst farblos —
+     eine App hat nicht zu entscheiden, in welche Richtung die Waage soll. */
+  const dir = bwGoalDir();
+  const sgnKg = v => v == null ? '–'
+    : (Math.abs(v) < 0.05 ? '±' + kg(0) : (v > 0 ? '+' : '−') + kg(Math.abs(v)));
+  const clsOf = v => {
+    if(v == null || !dir || Math.abs(v) < 0.15) return 'mut';
+    return (v > 0 ? 1 : -1) === dir ? 'up' : 'down';
+  };
+
   $('#bodyKpis').innerHTML =
     kpi('Gewicht', last && num(last.weight) ? kg(num(last.weight)) : '–',
-        last ? fmtDate(last.date) : 'noch keine Messung') +
-    kpi('Trend (7 Tage)', tNow != null ? kg(tNow) : '–', '') +
-    kpi('4 Wochen', d == null ? '–' : (d >= 0 ? '+' : '−') + kg(Math.abs(d)), '',
-        d == null ? '' : (Math.abs(d) < 0.3 ? 'mut' : (d > 0 ? 'up' : 'down'))) +
-    kpi('Körperfett', last && num(last.bf) ? n1(num(last.bf)) + ' %' : '–', '') +
+        last ? fmtDate(last.date) + ' · ' + relDays(last.date) : 'noch keine Messung') +
+    kpi('Wochenschnitt', thisWeek ? kg(thisWeek.w) : '–',
+        thisWeek ? thisWeek.n + (thisWeek.n === 1 ? ' Messung' : ' Messungen') : '') +
+    kpi('Diese Woche', weekDelta == null ? '–' : sgnKg(weekDelta),
+        'gegenüber der Vorwoche', clsOf(weekDelta)) +
+    kpi('Seit Start', sinceStart == null ? '–' : sgnKg(sinceStart),
+        wk.length ? 'seit ' + fmtDate(wk[0].week) : '', clsOf(sinceStart)) +
+    kpi('Ø pro Woche', avgPerWeek == null ? '–' : sgnKg(avgPerWeek),
+        wk.length + ' Wochen erfasst', clsOf(avgPerWeek)) +
+    (() => {
+      /* Körperfett wird selten gemessen — die letzte vorhandene Zahl zeigen,
+         nicht die letzte Zeile.                                             */
+      const bfRows = rows.filter(r => num(r.bf));
+      const bf = bfRows[bfRows.length-1];
+      const bf0 = bfRows[0];
+      return kpi('Körperfett', bf ? n1(num(bf.bf)) + ' %' : '–',
+        bf ? fmtDate(bf.date) + (bf0 && bf0 !== bf
+          ? ' · ' + (num(bf.bf) - num(bf0.bf) >= 0 ? '+' : '−') +
+            n1(Math.abs(num(bf.bf) - num(bf0.bf))) + ' pp' : '') : '');
+    })() +
     (bmi ? kpi('BMI', n1(bmi), 'nur grobe Einordnung') : '') +
     kpi('Messungen', rows.length, '');
 
-  /* Gewichtskurve */
-  const labels = rows.map(r => fmtDate(r.date));
-  chart('chBody', {
-    type:'line',
-    data:{labels, datasets:[
-      {label:'Messung', data:rows.map(r => num(r.weight) ? Math.round(kgOut(num(r.weight))*10)/10 : null),
-       borderColor:cssVar('--muted'), backgroundColor:'transparent', borderWidth:1,
-       pointRadius:2, tension:.2, spanGaps:true},
-      {label:'Trend', data:trend.map(v => v != null ? Math.round(kgOut(v)*10)/10 : null),
-       borderColor:cssVar('--acc'), backgroundColor:cssVar('--acc') + '14', fill:true,
-       borderWidth:2.5, pointRadius:0, tension:.35, spanGaps:true}
-    ]},
-    options:{plugins:{legend:{display:true, position:'bottom'}},
-      scales:{y:{beginAtZero:false}}}
-  });
+  /* Erinnerung, wenn das Wiegen liegen geblieben ist */
+  const nudge = $('#bodyNudge');
+  if(nudge){
+    if(daysSince != null && daysSince >= 8){
+      nudge.className = 'note';
+      nudge.style.marginTop = '12px';
+      nudge.textContent = 'Die letzte Messung ist ' + daysSince + ' Tage her. ' +
+        'Für eine brauchbare Wochenkurve reicht ein fester Termin pro Woche — ' +
+        'am besten morgens nach dem Aufstehen, vor dem Frühstück.';
+      nudge.classList.remove('hide');
+    }else nudge.classList.add('hide');
+  }
 
-  /* Umfänge */
+  /* Kurve: wöchentlich (Standard) oder jede einzelne Messung */
+  $$('#bodyMode [data-bmode]').forEach(b => b.classList.toggle('on', b.dataset.bmode === S.bodyMode));
+
+  if(S.bodyMode === 'week'){
+    const good = dir ? cssVar('--up') : cssVar('--acc2');
+    const bad  = dir ? cssVar('--down') : cssVar('--acc2');
+    const up   = dir > 0 ? good : bad;      /* Farbe für eine Zunahme */
+    const down = dir > 0 ? bad  : good;     /* Farbe für eine Abnahme */
+    chart('chBody', {
+      data:{labels:wk.map(x => fmtDate(x.week)), datasets:[
+        {type:'line', label:'Wochenschnitt',
+         data:wk.map(x => Math.round(kgOut(x.w)*100)/100),
+         borderColor:cssVar('--acc'), backgroundColor:cssVar('--acc') + '16', fill:true,
+         borderWidth:2.5, pointRadius:2.5, tension:.3, yAxisID:'y'},
+        {type:'bar', label:'Veränderung',
+         data:wk.map(x => x.d == null ? 0 : Math.round(kgOut(x.d)*100)/100),
+         backgroundColor:wk.map(x => (x.d || 0) >= 0 ? up + '55' : down + '55'),
+         borderColor:wk.map(x => (x.d || 0) >= 0 ? up : down),
+         borderWidth:1, borderRadius:3, yAxisID:'y1'}
+      ]},
+      options:{plugins:{legend:{display:true, position:'bottom'}},
+        scales:{
+          y:{position:'left', beginAtZero:false},
+          y1:{position:'right', grid:{display:false},
+              ticks:{color:cssVar('--muted'), font:{size:10}}}
+        }}
+    });
+    $('#bodyNote').textContent = 'Die Linie ist der Schnitt aller Messungen einer Woche, ' +
+      'die Balken die Veränderung zur Vorwoche. Nur die Linie sagt etwas über den Trend — ' +
+      'einzelne Tageswerte schwanken um Wasser, Salz und Darminhalt, oft um mehr als der ' +
+      'echte Trend eines ganzen Monats.';
+  }else{
+    chart('chBody', {
+      type:'line',
+      data:{labels:rows.map(r => fmtDate(r.date)), datasets:[
+        {label:'Messung', data:rows.map(r => num(r.weight) ? Math.round(kgOut(num(r.weight))*10)/10 : null),
+         borderColor:cssVar('--muted'), backgroundColor:'transparent', borderWidth:1,
+         pointRadius:2, tension:.2, spanGaps:true},
+        {label:'Trend (7 Tage)', data:trend.map(v => v != null ? Math.round(kgOut(v)*10)/10 : null),
+         borderColor:cssVar('--acc'), backgroundColor:cssVar('--acc') + '14', fill:true,
+         borderWidth:2.5, pointRadius:0, tension:.35, spanGaps:true}
+      ]},
+      options:{plugins:{legend:{display:true, position:'bottom'}},
+        scales:{y:{beginAtZero:false}}}
+    });
+    $('#bodyNote').textContent = 'Die dünne Linie ist die Tagesmessung, die kräftige der ' +
+      'gleitende Schnitt über sieben Tage.';
+  }
+
+  /* Wochentabelle */
+  $('#weekPanel').classList.toggle('hide', wk.length < 2);
+  $('#tblWeek').querySelector('tbody').innerHTML = wk.slice().reverse().map(x =>
+    '<tr><td>' + fmtDate(x.week) + '</td>' +
+    '<td><b>' + kg(x.w) + '</b></td>' +
+    '<td class="' + clsOf(x.d) + '">' + (x.d == null ? '–' : sgnKg(x.d)) + '</td>' +
+    '<td class="' + clsOf(x.since) + '">' + sgnKg(x.since) + '</td>' +
+    '<td class="mut">' + x.n + '</td></tr>').join('');
+
+  /* Umfänge — immer über alle Messungen, dafür gibt es zu wenige Datenpunkte
+     für eine Wochenbetrachtung.                                            */
+  const labels = rows.map(r => fmtDate(r.date));
   const fields = [['chest','Brust'],['waist','Taille'],['arm','Arm'],['thigh','Bein']];
-  const cols = [cssVar('--acc'), cssVar('--warn'), cssVar('--acc2'), cssVar('--up')];
+  const cols = ['#0d7d6f','#b45309','#2563eb','#16a34a'];
+  /* Nicht die Absolutwerte zeichnen — 104 cm Brust und 37 cm Arm in einem
+     Diagramm ergeben vier fast waagerechte Striche. Die Veränderung gegen
+     die erste Messung zeigt dagegen genau das, worum es geht.              */
   chart('chGirth', {
     type:'line',
-    data:{labels, datasets:fields.map(([k,l],i) => ({
-      label:l, data:rows.map(r => num(r[k]) || null), borderColor:cols[i],
-      backgroundColor:'transparent', borderWidth:2, pointRadius:0, tension:.3, spanGaps:true
-    }))},
+    data:{labels, datasets:fields.map(([k,l],i) => {
+      const base = (rows.find(r => num(r[k])) || {})[k];
+      return {
+        label:l,
+        data:rows.map(r => num(r[k]) && num(base)
+          ? Math.round((num(r[k]) - num(base))*10)/10 : null),
+        borderColor:cols[i], backgroundColor:'transparent',
+        borderWidth:2, pointRadius:2, tension:.3, spanGaps:true
+      };
+    })},
     options:{plugins:{legend:{display:true, position:'bottom'}},
-      scales:{y:{beginAtZero:false, title:{display:true, text:'cm',
+      scales:{y:{beginAtZero:false, title:{display:true, text:'cm seit der ersten Messung',
         color:cssVar('--muted'), font:{size:10}}}}}
   });
 
@@ -3402,7 +3657,13 @@ function editBody(id){
       };
     });
 }
-function wireBody(){ $('#bodyNew').onclick = () => editBody(null); }
+function wireBody(){
+  $('#bodyNew').onclick = () => editBody(null);
+  $$('#bodyMode [data-bmode]').forEach(b => b.onclick = () => {
+    S.bodyMode = b.dataset.bmode;
+    renderBody();
+  });
+}
 
 /* ==========================================================================
    Einstellungen
