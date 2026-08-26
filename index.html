@@ -441,11 +441,12 @@ tbody tr.click:hover{background:var(--panel2)}
     </div>
 
     <div id="woLive" class="hide">
+      <div id="woEditBanner" class="note hide" style="margin-bottom:14px"></div>
       <div class="panel">
         <div class="panelhd">
           <h2 style="margin:0" id="woTitle"></h2>
           <div class="stat">
-            <button id="woRename">Umbenennen</button>
+            <button id="woRename">Name &amp; Datum</button>
             <button id="woDiscard" class="danger">Verwerfen</button>
           </div>
         </div>
@@ -462,7 +463,7 @@ tbody tr.click:hover{background:var(--panel2)}
         <h2>Abschluss</h2>
         <div class="grid2">
           <div class="f"><label>Körpergewicht heute (kg)</label>
-            <input type="number" step="0.1" id="woBw" placeholder="optional"></div>
+            <input type="text" inputmode="decimal" id="woBw" placeholder="optional"></div>
           <div class="f"><label>Wie lief es?</label>
             <div class="stars" id="woRating">
               <div class="star" data-r="1">1</div><div class="star" data-r="2">2</div>
@@ -770,7 +771,7 @@ tbody tr.click:hover{background:var(--panel2)}
     <div class="panel">
       <h2>Maximalkraft schätzen</h2>
       <div class="grid3">
-        <div class="f"><label>Gewicht (kg)</label><input type="number" id="c1w" value="100" step="0.5"></div>
+        <div class="f"><label>Gewicht (kg)</label><input type="text" inputmode="decimal" id="c1w" value="100"></div>
         <div class="f"><label>Wiederholungen</label><input type="number" id="c1r" value="5" min="1" max="20"></div>
         <div class="f"><label>Formel</label>
           <select id="c1f"><option value="epley">Epley</option><option value="brzycki">Brzycki</option></select></div>
@@ -781,9 +782,9 @@ tbody tr.click:hover{background:var(--panel2)}
     <div class="panel">
       <h2>Hantelscheiben</h2>
       <div class="grid3">
-        <div class="f"><label>Zielgewicht (kg)</label><input type="number" id="c2t" value="100" step="0.5"></div>
-        <div class="f"><label>Stange (kg)</label><input type="number" id="c2b" value="20" step="0.5"></div>
-        <div class="f"><label>Kleinste Scheibe (kg)</label><input type="number" id="c2m" value="1.25" step="0.25"></div>
+        <div class="f"><label>Zielgewicht (kg)</label><input type="text" inputmode="decimal" id="c2t" value="100"></div>
+        <div class="f"><label>Stange (kg)</label><input type="text" inputmode="decimal" id="c2b" value="20"></div>
+        <div class="f"><label>Kleinste Scheibe (kg)</label><input type="text" inputmode="decimal" id="c2m" value="1.25"></div>
       </div>
       <div id="c2out"></div>
     </div>
@@ -801,8 +802,8 @@ tbody tr.click:hover{background:var(--panel2)}
     <div class="panel">
       <h2>Tempo und Zeit</h2>
       <div class="grid3">
-        <div class="f"><label>Distanz (km)</label><input type="number" id="c4d" value="10" step="0.1"></div>
-        <div class="f"><label>Zeit (Min.)</label><input type="number" id="c4t" value="50" step="0.5"></div>
+        <div class="f"><label>Distanz (km)</label><input type="text" inputmode="decimal" id="c4d" value="10"></div>
+        <div class="f"><label>Zeit (Min.)</label><input type="text" inputmode="decimal" id="c4t" value="50"></div>
         <div class="f"><label>&nbsp;</label><button id="c4go" style="width:100%">Berechnen</button></div>
       </div>
       <div id="c4out"></div>
@@ -962,7 +963,20 @@ const BUILD = '2026-08-23';
 /* ---------- Kleine Helfer ---------- */
 const $  = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
-const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+/* Zahlen aus Eingabefeldern lesen. Deutsche Tastaturen liefern das Komma,
+   und ein <input type="number"> wirft solche Werte kommentarlos weg — die
+   Eingabefelder für Kommazahlen sind deshalb Textfelder, und hier wird
+   beides verstanden: 40,5 genauso wie 40.5.                                */
+const num = v => {
+  if(typeof v === 'string'){
+    let s = v.trim().replace(/\s/g,'');
+    if(s.indexOf(',') >= 0) s = s.replace(/\./g,'').replace(',', '.');
+    const n = parseFloat(s);
+    return isFinite(n) ? n : 0;
+  }
+  const n = parseFloat(v);
+  return isFinite(n) ? n : 0;
+};
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
@@ -1134,7 +1148,7 @@ const DEFAULT_SETTINGS = {theme:'auto', unit:'kg', fields:{rir:false, timer:true
 let S = {
   ex:[], ses:[], car:[], tpl:[], goals:[], body:[], revs:[],
   week:{}, block:null, profile:{}, settings:Object.assign({}, DEFAULT_SETTINGS),
-  activeId:null,
+  activeId:null, editId:null, editBackup:null,
   tab:'dashboard', dashWin:84, volWin:1, calDate:new Date(), revMon:mondayOf(todayISO()),
   progEx:null, bodyMode:'week', restWin:28, charts:{}, lastSync:0, dirty:false
 };
@@ -1672,10 +1686,54 @@ function activeSession(){
   return (s && !s.deleted && !s.done) ? s : null;
 }
 
+/* ---------- Nachträglich bearbeiten ----------
+   Ein abgeschlossenes Training wird in derselben Ansicht bearbeitet wie ein
+   laufendes — nur ohne Uhr, ohne neue Pausenmessung und ohne dass die
+   gespeicherte Dauer angefasst wird. Geändert werden ausschließlich die
+   Zahlen, die du dort eintippst.                                           */
+function editingSession(){
+  if(!S.editId) return null;
+  const s = byId('ses', S.editId);
+  return (s && !s.deleted) ? s : null;
+}
+function startEdit(id){
+  const s = byId('ses', id);
+  if(!s) return;
+  S.editId = id;
+  S.editBackup = JSON.parse(JSON.stringify(s));   /* für „Abbrechen" */
+  switchTab('workout');
+  renderAll();
+  window.scrollTo(0,0);
+}
+function cancelEdit(){
+  if(S.editBackup){
+    /* Zwischenstände wurden schon gespeichert — den alten Stand mit frischem
+       Zeitstempel zurückschreiben, damit er auch beim Abgleich gewinnt.    */
+    put('ses', S.editBackup);
+  }
+  S.editId = null; S.editBackup = null;
+  switchTab('log');
+  renderAll();
+}
+
 function renderWorkout(){
-  const a = activeSession();
+  const edit = editingSession();
+  const a = edit || activeSession();
   $('#woEmpty').classList.toggle('hide', !!a);
   $('#woLive').classList.toggle('hide', !a);
+
+  const banner = $('#woEditBanner');
+  banner.classList.toggle('hide', !edit);
+  if(edit){
+    banner.innerHTML = 'Du bearbeitest ein früheres Training vom <b>' + fmtDate(edit.date) +
+      '</b>. Die gespeicherte Dauer und die Pausenzeiten bleiben unverändert — ' +
+      'geändert wird nur, was du hier eintippst.' +
+      (activeSession() ? ' Dein laufendes Training bleibt davon unberührt.' : '');
+  }
+  $('#woFinish').textContent = edit ? 'Änderungen speichern' : 'Training beenden & speichern';
+  $('#woDiscard').textContent = edit ? 'Abbrechen' : 'Verwerfen';
+  $('#woDiscard').classList.toggle('danger', !edit);
+
   if(!a){
     if(!$('#woDate').value) $('#woDate').value = todayISO();
     $('#woTemplate').innerHTML = '<option value="">Leeres Training</option>' +
@@ -1689,15 +1747,19 @@ function renderWorkout(){
     return;
   }
 
-  $('#woTitle').textContent = a.name || 'Training';
+  $('#woTitle').textContent = (edit ? 'Bearbeiten: ' : '') + (a.name || 'Training');
   const vol = sessionVolume(a), sets = sessionSetCount(a);
-  const mins = a.start ? Math.round((Date.now() - a.start)/60000) : 0;
+  /* Bei einem laufenden Training zählt die Uhr mit, bei einem bearbeiteten
+     bleibt die gespeicherte Dauer stehen.                                  */
+  const dauer = edit
+    ? ((a.start && a.end && a.end > a.start) ? (a.end - a.start)/1000 : null)
+    : (a.start ? (Date.now() - a.start)/1000 : null);
   const rest = sessionRest(a);
   $('#woKpis').innerHTML =
     kpi('Sätze', sets, (a.sets||[]).length - sets ? ((a.sets||[]).length - sets) + ' Aufwärmsätze' : '') +
     kpi('Volumen', kg(vol, 0), '') +
     kpi('Übungen', new Set((a.sets||[]).map(x => x.ex)).size, '') +
-    kpi('Dauer', mins + ' min', fmtDate(a.date)) +
+    kpi('Dauer', dauer == null ? '–' : durTxt(dauer), fmtDate(a.date)) +
     kpi('Ø Pause', secTxt(rest.avg), rest.n ? 'über ' + rest.n + ' Pausen' : 'noch keine');
 
   /* Übungsblöcke */
@@ -1707,9 +1769,9 @@ function renderWorkout(){
 
   $('#woBlocks').innerHTML = order.map(exId => exBlockHtml(a, exId)).join('') ||
     '<div class="panel"><div class="empty-state">Noch keine Übung. Tippe unten auf „Übung hinzufügen".</div></div>';
-  wireBlocks(a);
+  wireBlocks(a, !!edit);
 
-  $('#woBw').value = a.bw || '';
+  $('#woBw').value = a.bw ? n1(kgOut(num(a.bw))) : '';
   $('#woNote').value = a.note || '';
   $$('#woRating .star').forEach(el => el.classList.toggle('on', num(el.dataset.r) === num(a.rating)));
 }
@@ -1745,7 +1807,7 @@ function exBlockHtml(a, exId){
     const filled = num(x.r) > 0;          /* erst mit Wiederholungen gilt ein Satz als gemacht */
     return '<div class="setrow' + (filled && !warm ? ' donerow' : '') + '" data-i="' + o.i + '">' +
       '<div class="sn">' + (warm ? 'A' : (n+1 - sets.slice(0,n).filter(s2 => s2.x.t === 'w').length)) + '</div>' +
-      '<input type="number" inputmode="decimal" step="0.5" class="sw" placeholder="' + unitLabel() + '" value="' +
+      '<input type="text" inputmode="decimal" class="sw" placeholder="' + unitLabel() + '" value="' +
         (num(x.w) ? n1(kgOut(num(x.w))) : '') + '">' +
       '<input type="number" inputmode="numeric" class="sr" placeholder="Wdh" value="' +
         (num(x.r) || '') + '">' +
@@ -1773,7 +1835,7 @@ function exBlockHtml(a, exId){
     '</div></div>';
 }
 
-function wireBlocks(a){
+function wireBlocks(a, isEdit){
   $$('#woBlocks .exblock').forEach(block => {
     const exId = block.dataset.ex;
 
@@ -1809,12 +1871,15 @@ function wireBlocks(a){
     block.querySelectorAll('.setrow').forEach(row => {
       const i = num(row.dataset.i);
       const commit = () => {
-        const w = parseFloat(row.querySelector('.sw').value);
-        const r = parseFloat(row.querySelector('.sr').value);
+        const wv = row.querySelector('.sw').value.trim();
+        const rv = row.querySelector('.sr').value.trim();
         const rirEl = row.querySelector('.sir');
-        a.sets[i].w = isFinite(w) ? kgIn(w) : 0;
-        a.sets[i].r = isFinite(r) ? r : 0;
-        if(rirEl){ const v = parseFloat(rirEl.value); a.sets[i].rir = isFinite(v) ? v : null; }
+        a.sets[i].w = wv ? kgIn(num(wv)) : 0;
+        a.sets[i].r = rv ? num(rv) : 0;
+        if(rirEl){
+          const rr = rirEl.value.trim();
+          a.sets[i].rir = rr ? num(rr) : null;
+        }
         put('ses', a);
       };
       row.querySelector('.sw').addEventListener('change', commit);
@@ -1823,8 +1888,9 @@ function wireBlocks(a){
         commit();
         const nachher = num(a.sets[i].r);
         /* Nur ein frisch abgeschlossener Satz zählt als Zeitpunkt — beim
-           Nachbessern einer alten Zahl darf keine Pause entstehen.         */
-        if(nachher > 0 && vorher === 0){
+           Nachbessern einer alten Zahl darf keine Pause entstehen. Beim
+           nachträglichen Bearbeiten wird grundsätzlich keine Zeit gemessen. */
+        if(!isEdit && nachher > 0 && vorher === 0){
           const jetzt = Date.now();
           if(a.lastSetAt && a.sets[i].t !== 'w'){
             const sek = Math.round((jetzt - a.lastSetAt) / 1000);
@@ -2060,19 +2126,38 @@ function suggestFor(item){
 }
 
 function finishSession(){
-  const a = activeSession();
+  const edit = editingSession();
+  const a = edit || activeSession();
   if(!a) return;
-  REST.stop();                    /* mit dem Training endet auch die Pause */
+  if(!edit) REST.stop();          /* mit dem Training endet auch die Pause */
   a.sets = (a.sets || []).filter(x => num(x.r) > 0);
   if(!a.sets.length){
-    confirmSheet('Nichts eingetragen', 'Dieses Training hat keine Sätze. Soll es verworfen werden?',
-      'Verwerfen', () => { remove('ses', a.id); S.activeId = null; saveDB(); renderAll(); });
+    confirmSheet('Nichts eingetragen',
+      edit ? 'Dieses Training hat keine Sätze mehr. Soll es gelöscht werden?'
+           : 'Dieses Training hat keine Sätze. Soll es verworfen werden?',
+      edit ? 'Löschen' : 'Verwerfen',
+      () => {
+        remove('ses', a.id);
+        S.activeId = null; S.editId = null; S.editBackup = null;
+        saveDB(); switchTab(edit ? 'log' : 'dashboard'); renderAll();
+      });
     return;
   }
-  a.done = true;
-  a.end = Date.now();
   a.bw = num($('#woBw').value) ? kgIn(num($('#woBw').value)) : null;
   a.note = $('#woNote').value.trim();
+
+  if(edit){
+    /* Nur die Daten anfassen. Start, Ende und damit die Dauer bleiben, wie
+       sie am Trainingstag waren.                                          */
+    put('ses', a);
+    S.editId = null; S.editBackup = null;
+    switchTab('log');
+    renderAll();
+    return;
+  }
+
+  a.done = true;
+  a.end = Date.now();
   put('ses', a);
   S.activeId = null; saveDB();
 
@@ -2131,7 +2216,7 @@ function wireWorkout(){
     if(t && !$('#woName').value.trim()) $('#woName').value = t.name;
   });
   $('#woAddEx').onclick = () => {
-    const a = activeSession(); if(!a) return;
+    const a = editingSession() || activeSession(); if(!a) return;
     pickExercise(id => {
       a.order = a.order || [];
       if(a.order.indexOf(id) < 0) a.order.push(id);
@@ -2143,6 +2228,7 @@ function wireWorkout(){
   };
   $('#woFinish').onclick = finishSession;
   $('#woDiscard').onclick = () => {
+    if(editingSession()){ cancelEdit(); return; }
     const a = activeSession(); if(!a) return;
     confirmSheet('Training verwerfen?', 'Alle Sätze dieses Trainings gehen verloren.',
       'Verwerfen', () => {
@@ -2151,24 +2237,28 @@ function wireWorkout(){
       });
   };
   $('#woRename').onclick = () => {
-    const a = activeSession(); if(!a) return;
-    sheet('<h3>Training umbenennen</h3><div class="f"><label>Name</label>' +
+    const a = editingSession() || activeSession(); if(!a) return;
+    sheet('<h3>Name &amp; Datum</h3>' +
+      '<div class="f"><label>Name</label>' +
       '<input type="text" id="rnV" value="' + esc(a.name) + '"></div>' +
+      '<div class="f"><label>Datum</label>' +
+      '<input type="date" id="rnD" value="' + esc(a.date) + '"></div>' +
       '<div class="sact"><button id="rnNo">Abbrechen</button>' +
       '<button class="primary" id="rnOk">Speichern</button></div>', s => {
         s.querySelector('#rnNo').onclick = closeSheet;
         s.querySelector('#rnOk').onclick = () => {
           a.name = s.querySelector('#rnV').value.trim() || 'Training';
-          put('ses', a); closeSheet(); renderWorkout();
+          a.date = s.querySelector('#rnD').value || a.date;
+          put('ses', a); closeSheet(); renderAll();
         };
       });
   };
   $$('#woRating .star').forEach(el => el.onclick = () => {
-    const a = activeSession(); if(!a) return;
+    const a = editingSession() || activeSession(); if(!a) return;
     a.rating = num(el.dataset.r); put('ses', a); renderWorkout();
   });
   $('#woNote').addEventListener('change', () => {
-    const a = activeSession(); if(!a) return;
+    const a = editingSession() || activeSession(); if(!a) return;
     a.note = $('#woNote').value.trim(); put('ses', a);
   });
   $('#btnQuick').onclick = () => {
@@ -2476,10 +2566,12 @@ function showSession(id){
     '</div>' + blocks +
     (s.note ? '<div class="note" style="margin-top:14px;white-space:pre-wrap">' + esc(s.note) + '</div>' : '') +
     '<div class="sact"><button class="danger" id="ssDel">Löschen</button>' +
+    '<button id="ssEdit">Bearbeiten</button>' +
     '<button id="ssRepeat">Nochmal trainieren</button>' +
     '<button class="primary" id="ssOk">Schließen</button></div>',
     el => {
       el.querySelector('#ssOk').onclick = closeSheet;
+      el.querySelector('#ssEdit').onclick = () => { closeSheet(); startEdit(id); };
       el.querySelector('#ssDel').onclick = () => confirmSheet('Training löschen?',
         'Die Einheit wird auf allen Geräten entfernt.', 'Löschen',
         () => { remove('ses', id); renderAll(); });
@@ -2641,9 +2733,9 @@ function editCardio(id){
     '<div class="f"><label>Art</label><select id="cType">' +
       Object.keys(CARDIO_TYPES).map(k => '<option value="' + k + '"' + (t === k ? ' selected' : '') + '>' +
       CARDIO_TYPES[k] + '</option>').join('') + '</select></div>' +
-    '<div class="f"><label>Dauer (Minuten)</label><input type="number" inputmode="decimal" id="cDur" value="' +
+    '<div class="f"><label>Dauer (Minuten)</label><input type="text" inputmode="decimal" id="cDur" value="' +
       (c ? num(c.dur) : '') + '"></div>' +
-    '<div class="f"><label>Distanz (km)</label><input type="number" inputmode="decimal" step="0.01" id="cDist" value="' +
+    '<div class="f"><label>Distanz (km)</label><input type="text" inputmode="decimal" id="cDist" value="' +
       (c && num(c.dist) ? num(c.dist) : '') + '"></div>' +
     '<div class="f"><label>Ø Puls</label><input type="number" inputmode="numeric" id="cHr" value="' +
       (c && num(c.avgHr) ? num(c.avgHr) : '') + '"></div>' +
@@ -2775,7 +2867,7 @@ function editTemplate(id){
         Object.keys(PROGRESSIONS).map(k => '<option value="' + k + '"' + (t.prog === k ? ' selected' : '') +
         '>' + PROGRESSIONS[k] + '</option>').join('') + '</select></div>' +
       '<div class="f"><label>Schrittweite (' + unitLabel() + ')</label>' +
-        '<input type="number" step="0.25" id="tStep" value="' + n1(kgOut(num(t.step)||2.5)) + '"></div>' +
+        '<input type="text" inputmode="decimal" id="tStep" value="' + n1(kgOut(num(t.step)||2.5)) + '"></div>' +
       '</div>' +
       '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 6px">Übungen</div>' +
       (t.items.length ? t.items.map((it,i) =>
@@ -3063,7 +3155,7 @@ function editGoal(id){
     '<div class="f"><label>Art</label><select id="gType">' +
       Object.keys(GOAL_TYPES).map(k => '<option value="' + k + '"' + (type === k ? ' selected' : '') +
       '>' + GOAL_TYPES[k] + '</option>').join('') + '</select></div>' +
-    '<div class="f"><label>Zielwert</label><input type="number" step="0.5" id="gV" value="' +
+    '<div class="f"><label>Zielwert</label><input type="text" inputmode="decimal" id="gV" value="' +
       (g ? num(g.target) : '') + '"></div>' +
     '</div>' +
     '<div class="f" id="gExWrap"><label>Übung</label><select id="gEx">' +
@@ -3072,7 +3164,7 @@ function editGoal(id){
         esc(e.name) + '</option>').join('') + '</select></div>' +
     '<div class="grid2">' +
     '<div class="f"><label>Bis wann</label><input type="date" id="gDue" value="' + (g && g.due ? g.due : '') + '"></div>' +
-    '<div class="f"><label>Startwert (optional)</label><input type="number" step="0.1" id="gS" value="' +
+    '<div class="f"><label>Startwert (optional)</label><input type="text" inputmode="decimal" id="gS" value="' +
       (g && num(g.start) ? num(g.start) : '') + '"></div>' +
     '</div>' +
     '<div class="sact">' + (g ? '<button class="danger" id="gDel">Löschen</button>' +
@@ -3795,13 +3887,13 @@ function editBody(id){
     '<div class="f"><label>Datum</label><input type="date" id="bD" value="' +
       (b ? b.date : todayISO()) + '"></div>' +
     '<div class="f"><label>Gewicht (' + unitLabel() + ')</label>' +
-      '<input type="number" step="0.1" inputmode="decimal" id="bW" value="' +
+      '<input type="text" inputmode="decimal" id="bW" value="' +
       (b && num(b.weight) ? n1(kgOut(num(b.weight))) : '') + '"></div>' +
-    '<div class="f"><label>Körperfett (%)</label><input type="number" step="0.1" id="bF" value="' + g('bf') + '"></div>' +
-    '<div class="f"><label>Brust (cm)</label><input type="number" step="0.5" id="bC" value="' + g('chest') + '"></div>' +
-    '<div class="f"><label>Taille (cm)</label><input type="number" step="0.5" id="bWa" value="' + g('waist') + '"></div>' +
-    '<div class="f"><label>Arm (cm)</label><input type="number" step="0.5" id="bA" value="' + g('arm') + '"></div>' +
-    '<div class="f"><label>Oberschenkel (cm)</label><input type="number" step="0.5" id="bT" value="' + g('thigh') + '"></div>' +
+    '<div class="f"><label>Körperfett (%)</label><input type="text" inputmode="decimal" id="bF" value="' + g('bf') + '"></div>' +
+    '<div class="f"><label>Brust (cm)</label><input type="text" inputmode="decimal" id="bC" value="' + g('chest') + '"></div>' +
+    '<div class="f"><label>Taille (cm)</label><input type="text" inputmode="decimal" id="bWa" value="' + g('waist') + '"></div>' +
+    '<div class="f"><label>Arm (cm)</label><input type="text" inputmode="decimal" id="bA" value="' + g('arm') + '"></div>' +
+    '<div class="f"><label>Oberschenkel (cm)</label><input type="text" inputmode="decimal" id="bT" value="' + g('thigh') + '"></div>' +
     '<div class="f"><label>Ruhepuls</label><input type="number" id="bHr" value="' + g('hr') + '"></div>' +
     '</div>' +
     '<div class="f"><label>Notiz</label><textarea id="bN">' + esc(b ? b.note : '') + '</textarea></div>' +
