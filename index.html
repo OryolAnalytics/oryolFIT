@@ -51,14 +51,23 @@ body{margin:0;background:var(--bg);color:var(--txt);
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;font-size:14px;line-height:1.45}
 
+/* ---------- Wortmarke ----------
+   Dieselbe Schrift wie im Trading-Journal, direkt in der Datei (nur o, r, y, l).
+   Sie trägt den Schriftzug im Startbild und auf der Karte zum Teilen.     */
+@font-face{
+  font-family:'Oryol Mark';
+  font-style:normal; font-weight:400; font-display:block;
+  src:url(data:font/woff2;base64,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) format('woff2');
+}
+
 /* ---------- Startbild ----------
    Kurzer, ruhiger Auftakt beim Öffnen. Kein Nachladen, funktioniert offline. */
 #sting{position:fixed;inset:0;z-index:2147483647;background:#100f0e;
   display:flex;align-items:center;justify-content:center;overflow:hidden;
   opacity:1;transition:opacity .45s ease}
 #sting.out{opacity:0}
-#sting .mark{color:#fff;font-size:34px;font-weight:300;letter-spacing:.32em;
-  text-indent:.32em;opacity:0;transform:translateY(14px);
+#sting .mark{color:#fff;font-family:'Oryol Mark',Georgia,serif;font-size:46px;
+  font-weight:400;letter-spacing:.34em;text-indent:.34em;opacity:0;transform:translateY(14px);
   animation:stingIn .9s cubic-bezier(.22,.8,.28,1) forwards}
 #sting .sub{position:absolute;bottom:34%;color:rgba(255,255,255,.42);font-size:11px;
   letter-spacing:.34em;text-indent:.34em;text-transform:uppercase;opacity:0;
@@ -348,7 +357,7 @@ tbody tr.click:hover{background:var(--panel2)}
 </style>
 </head>
 <body>
-<div id="sting"><div class="mark">ORYOL</div><div class="sub">Fit</div></div>
+<div id="sting"><div class="mark">oryol</div><div class="sub">Fit</div></div>
 <div id="crash" class="crash hide">
   <div class="crashin">
     <div><b>Da ist etwas schiefgegangen.</b> <span id="crashMsg"></span></div>
@@ -933,6 +942,33 @@ tbody tr.click:hover{background:var(--panel2)}
 </div>
 
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<!-- KARTE ZUM TEILEN — Aufbau wie im Trading-Journal -->
+<div class="modal" id="cardModal">
+  <div class="sheet" style="max-width:540px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div>
+        <h3 style="margin:0">Karte zum Teilen</h3>
+        <div class="mut" style="font-size:12.5px" id="cardSub">–</div>
+      </div>
+      <button id="cardClose">✕</button>
+    </div>
+    <div style="margin:14px 0;background:var(--panel2);border:1px solid var(--line);
+      border-radius:12px;padding:10px">
+      <canvas id="cardCanvas" style="display:block;width:100%;border-radius:8px"></canvas>
+    </div>
+    <div class="filters">
+      <button class="tab on" data-cardlook="dunkel">Dunkel</button>
+      <button class="tab" data-cardlook="hell">Hell</button>
+    </div>
+    <div class="filters" style="margin-top:12px">
+      <button class="primary" id="cardShare">Teilen</button>
+      <button id="cardDownload">Herunterladen</button>
+      <button id="cardCopy">Kopieren</button>
+    </div>
+    <div class="mut" id="cardStatus" style="font-size:12.5px;margin-top:10px;min-height:18px"></div>
+  </div>
+</div>
 
 <div id="restbar">
   <div class="rt" id="restTime">0:00</div>
@@ -1742,7 +1778,10 @@ function renderWorkout(){
     const sugg = S.week[dowIndex(todayISO())];
     if(sugg && byId('tpl', sugg) && !$('#woTemplate').value){
       $('#woTemplate').value = sugg;
-      if(!$('#woName').value) $('#woName').value = byId('tpl', sugg).name;
+      if(!$('#woName').value){
+        $('#woName').value = byId('tpl', sugg).name;
+        $('#woName').dataset.auto = '1';        /* vorgeschlagen, nicht getippt */
+      }
     }
     return;
   }
@@ -2168,16 +2207,11 @@ function finishSession(){
     else put('body', {id:uid(), date:a.date, weight:a.bw, deleted:false});
   }
 
-  const prs = newPrsIn(a);
   switchTab('dashboard');
   renderAll();
-  if(prs.length){
-    sheet('<h3>Bestleistung!</h3>' +
-      '<p class="mut" style="font-size:13.5px;line-height:1.6">In diesem Training sind neue Bestwerte gefallen:</p>' +
-      prs.map(p => '<div class="dl"><span>' + esc(p.name) + '</span><span><b>' + p.txt + '</b></span></div>').join('') +
-      '<div class="sact"><button class="primary" id="prOk">Weiter</button></div>',
-      s => s.querySelector('#prOk').onclick = closeSheet);
-  }
+  /* Die Karte zum Teilen ist die Zusammenfassung des Tages — Bestleistungen
+     stehen groß darauf, eine eigene Meldung braucht es nicht mehr.        */
+  openKarte(a);
 }
 
 /* Bestwerte, die genau in dieser Einheit entstanden sind */
@@ -2211,10 +2245,15 @@ function wireWorkout(){
     if(!name) name = tpl && byId('tpl', tpl) ? byId('tpl', tpl).name : 'Training';
     startSession(d, name, tpl);
   };
+  /* Ein vorgeschlagener Name folgt der Vorlage; ein selbst getippter bleibt. */
   $('#woTemplate').addEventListener('change', () => {
     const t = byId('tpl', $('#woTemplate').value);
-    if(t && !$('#woName').value.trim()) $('#woName').value = t.name;
+    const nm = $('#woName');
+    if(t && (!nm.value.trim() || nm.dataset.auto === '1')){
+      nm.value = t.name; nm.dataset.auto = '1';
+    }
   });
+  $('#woName').addEventListener('input', () => { delete $('#woName').dataset.auto; });
   $('#woAddEx').onclick = () => {
     const a = editingSession() || activeSession(); if(!a) return;
     pickExercise(id => {
@@ -2568,10 +2607,12 @@ function showSession(id){
     '<div class="sact"><button class="danger" id="ssDel">Löschen</button>' +
     '<button id="ssEdit">Bearbeiten</button>' +
     '<button id="ssRepeat">Nochmal trainieren</button>' +
+    '<button id="ssShare">Teilen</button>' +
     '<button class="primary" id="ssOk">Schließen</button></div>',
     el => {
       el.querySelector('#ssOk').onclick = closeSheet;
       el.querySelector('#ssEdit').onclick = () => { closeSheet(); startEdit(id); };
+      el.querySelector('#ssShare').onclick = () => { closeSheet(); openKarte(s); };
       el.querySelector('#ssDel').onclick = () => confirmSheet('Training löschen?',
         'Die Einheit wird auf allen Geräten entfernt.', 'Löschen',
         () => { remove('ses', id); renderAll(); });
@@ -3671,6 +3712,407 @@ function wireCalc(){
   $('#c4go').onclick = renderCalc;
 }
 /* ==========================================================================
+   Karte zum Teilen
+   Ein Bild, 1080 × 1080, das man verschicken kann. Dieselbe Bauweise wie im
+   Trading-Journal: alles wird auf eine Zeichenfläche gemalt, kein fremder
+   Dienst, nichts verlässt das Gerät, bis du auf Teilen tippst. Dieselben
+   Farben, dieselbe Wortmarke, dieselben Abstände.
+   ========================================================================== */
+const KARTE = {
+  W:1080,
+  thema:{
+    dunkel:{bg:'#0b0d12', bgOben:'rgba(255,255,255,.035)', bgKlar:'rgba(11,13,18,0)',
+            fg:'#f5f6f7', mut:'#8b929c', linie:'rgba(255,255,255,.09)', linie2:'rgba(255,255,255,.18)',
+            up:'#22c48a', down:'#f24f64', neutral:'#5b9bff'},
+    hell:  {bg:'#f7f8fa', bgOben:'rgba(255,255,255,.6)', bgKlar:'rgba(247,248,250,0)',
+            fg:'#111418', mut:'#6b7280', linie:'rgba(17,20,24,.10)', linie2:'rgba(17,20,24,.2)',
+            up:'#0f8a5f', down:'#c9354a', neutral:'#2563eb'}
+  },
+  look:'dunkel', session:null
+};
+
+/* Die Karte ist immer englisch – sie geht nach draußen, das Journal nicht. */
+const KLOC = 'en-US';
+const kZahl = (v, n) => v.toLocaleString(KLOC, {minimumFractionDigits:n || 0, maximumFractionDigits:n || 0});
+const kDatum = iso => dateOf(iso).toLocaleDateString(KLOC, {day:'numeric', month:'short', year:'numeric'});
+function kDauer(sec){
+  if(!isFinite(sec) || sec <= 0) return '–';
+  if(sec < 60) return Math.round(sec) + 's';
+  const m = Math.round(sec / 60);
+  if(m < 60) return m + 'm';
+  return Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '');
+}
+function kPause(sec){
+  if(!isFinite(sec) || sec <= 0) return '–';
+  return mmss(sec);
+}
+function kGewicht(v){
+  const f = S.settings.unit === 'lb' ? 2.20462 : 1;
+  const x = v * f;
+  return kZahl(x, Math.abs(x) % 1 ? 1 : 0);
+}
+const SANS = '-apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+const SERIF = '"Oryol Mark", Georgia, "Times New Roman", Times, serif';
+
+/* Bestleistungen, wie sie AM TAG DES TRAININGS galten — verglichen nur mit
+   dem, was davor war. Sonst würde eine Karte von letztem Monat heute keinen
+   PR mehr zeigen, nur weil du inzwischen stärker bist.                    */
+function prsAt(session){
+  const frueher = live('ses').filter(s => s.done && s.id !== session.id &&
+    (s.date < session.date || (s.date === session.date && num(s.start) < num(session.start))));
+  const out = {};
+  const byEx = {};
+  for(const x of workSets(session)) (byEx[x.ex] = byEx[x.ex] || []).push(x);
+  for(const exId in byEx){
+    let bw = 0, be = 0, gesehen = false;
+    for(const s of frueher) for(const x of workSets(s)){
+      if(x.ex !== exId) continue;
+      gesehen = true;
+      bw = Math.max(bw, num(x.w));
+      be = Math.max(be, e1rm(x.w, x.r));
+    }
+    if(!gesehen) continue;                       /* erste Ausführung ist kein Rekord */
+    const myW = Math.max.apply(null, byEx[exId].map(x => num(x.w)));
+    const myE = bestE1rm(byEx[exId]);
+    if(myW > bw) out[exId] = 'weight';
+    else if(myE > be) out[exId] = 'e1rm';
+  }
+  return out;
+}
+
+/* Die Zahlen der Karte */
+function kartenDaten(s){
+  const vol = sessionVolume(s);
+  const sets = sessionSetCount(s);
+  const rest = sessionRest(s);
+  const dauer = (s.start && s.end && s.end > s.start) ? (s.end - s.start)/1000 : null;
+  const uebungen = new Set(workSets(s).map(x => x.ex)).size;
+
+  /* Vergleich: das letzte abgeschlossene Training mit demselben Namen davor */
+  const vorher = live('ses').filter(x => x.done && x.id !== s.id && x.name === s.name &&
+    (x.date < s.date || (x.date === s.date && num(x.start) < num(s.start))))
+    .sort((a,b) => a.date < b.date ? 1 : -1)[0] || null;
+  const prevVol = vorher ? sessionVolume(vorher) : null;
+  const pct = (prevVol && prevVol > 0) ? (vol - prevVol) / prevVol * 100 : null;
+
+  /* Beste Sätze je Übung, stärkste zuerst; Rekorde nach vorn */
+  const prs = prsAt(s);
+  const byEx = {};
+  for(const x of workSets(s)) (byEx[x.ex] = byEx[x.ex] || []).push(x);
+  const best = Object.keys(byEx).map(exId => {
+    const top = byEx[exId].reduce((a,b) =>
+      (num(b.w) > num(a.w) || (num(b.w) === num(a.w) && num(b.r) > num(a.r))) ? b : a);
+    return {ex:exId, name:exName(exId), w:num(top.w), r:num(top.r), e:e1rm(top.w, top.r), pr:prs[exId] || null};
+  }).sort((a,b) => (b.pr ? 1 : 0) - (a.pr ? 1 : 0) || b.e - a.e);
+
+  return {vol, sets, rest, dauer, uebungen, prevVol, pct, best,
+    prCount:Object.keys(prs).length, vorherDatum:vorher ? vorher.date : null};
+}
+
+/* Der Schriftzug – dieselbe Schrift und Laufweite wie in der Startanimation */
+function karteWortmarke(g, x, y, groesse, farbe){
+  g.font = '400 ' + groesse + 'px ' + SERIF;
+  g.fillStyle = farbe;
+  g.textBaseline = 'alphabetic';
+  g.textAlign = 'left';
+  const sperre = groesse * 0.34;
+  let cx = x;
+  for(const ch of 'oryol'){
+    g.fillText(ch, cx, y);
+    cx += g.measureText(ch).width + sperre;
+  }
+  return cx - sperre - x;
+}
+
+/* Eine Plakette wie „PUSH A" oder „2 PRS" */
+function karteChip(g, x, cy, text, farbe, alpha, klein){
+  g.font = '700 ' + (klein ? 21 : 25) + 'px ' + SANS;
+  g.textBaseline = 'middle';
+  g.textAlign = 'left';
+  const br = g.measureText(text).width;
+  const h = klein ? 38 : 48, pad = klein ? 14 : 18, w = br + 2 * pad;
+  g.globalAlpha = alpha;
+  g.fillStyle = farbe;
+  if(g.roundRect){ g.beginPath(); g.roundRect(x, cy - h / 2, w, h, klein ? 10 : 12); g.fill(); }
+  else g.fillRect(x, cy - h / 2, w, h);
+  g.globalAlpha = 1;
+  g.fillStyle = farbe;
+  g.fillText(text, x + pad, cy + 1);
+  g.textBaseline = 'alphabetic';
+  return w;
+}
+
+/* Text kürzen, bis er in die Breite passt */
+function karteKuerzen(g, text, maxW){
+  if(g.measureText(text).width <= maxW) return text;
+  let t = text;
+  while(t.length > 3 && g.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t + '…';
+}
+
+function zeichneKarte(cv, s, opt){
+  if(!cv || !cv.getContext) return false;
+  const g = cv.getContext('2d');
+  if(!g) return false;
+  const o = opt || {};
+  const hell = o.look === 'hell';
+  const F = KARTE.thema[hell ? 'hell' : 'dunkel'];
+  const W = KARTE.W;
+  cv.width = W; cv.height = W;
+  const d = kartenDaten(s);
+
+  /* Akzent: grün, wenn Rekord oder mehr Volumen als beim letzten Mal.
+     Weniger Volumen ist kein Verlust — ein Deload ist Absicht — deshalb
+     dann ein ruhiges Blau statt Rot.                                       */
+  const gut = d.prCount > 0 || d.pct == null || d.pct >= 0;
+  const akzent = gut ? F.up : F.neutral;
+  const P = 80;
+
+  g.globalAlpha = 1;
+  g.textBaseline = 'alphabetic';
+  g.textAlign = 'left';
+  if('letterSpacing' in g) g.letterSpacing = '0px';
+
+  /* --- Grund: dunkel, oben eine Spur heller, dazu der Lichtschein --- */
+  g.fillStyle = F.bg;
+  g.fillRect(0, 0, W, W);
+  if(g.createLinearGradient){
+    const lg = g.createLinearGradient(0, 0, 0, W);
+    lg.addColorStop(0, F.bgOben);
+    lg.addColorStop(1, F.bgKlar);
+    g.fillStyle = lg;
+    g.fillRect(0, 0, W, W);
+  }
+  if(g.createRadialGradient){
+    const schein = (cx, cy, r, a) => {
+      const rg = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+      rg.addColorStop(0, akzent + a);
+      rg.addColorStop(0.55, akzent + '22');
+      rg.addColorStop(1, akzent + '00');
+      g.fillStyle = rg;
+      g.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+    };
+    schein(300, 520, 620, hell ? '3a' : '55');
+    schein(900, 150, 420, hell ? '14' : '24');
+  }
+
+  /* --- Schriftzug + FIT --- */
+  const mw = karteWortmarke(g, P, 150, 52, F.fg);
+  g.font = '600 22px ' + SANS;
+  g.fillStyle = F.mut;
+  if('letterSpacing' in g) g.letterSpacing = '0.22em';
+  g.fillText('FIT', P + mw + 26, 150);
+  if('letterSpacing' in g) g.letterSpacing = '0px';
+
+  /* --- Name des Trainings, Plaketten --- */
+  const zeileM = 300;
+  g.fillStyle = F.fg;
+  g.font = '700 54px ' + SANS;
+  g.textBaseline = 'middle';
+  const name = karteKuerzen(g, s.name || 'Workout', 560);
+  g.fillText(name, P, zeileM);
+  let x = P + g.measureText(name).width + 24;
+  g.textBaseline = 'alphabetic';
+  if(d.prCount) x += karteChip(g, x, zeileM, d.prCount + (d.prCount === 1 ? ' PR' : ' PRS'), F.up, hell ? 0.13 : 0.2) + 12;
+  karteChip(g, x, zeileM, d.uebungen + (d.uebungen === 1 ? ' EXERCISE' : ' EXERCISES'), F.mut, hell ? 0.12 : 0.18);
+
+  /* --- Kennzahl: Volumen --- */
+  g.font = '600 24px ' + SANS;
+  g.fillStyle = F.mut;
+  g.fillText('VOLUME', P, 384);
+
+  const einheit = S.settings.unit === 'lb' ? 'lb' : 'kg';
+  /* Das Volumen ist eine Summe — ganze Zahl, sonst wirkt es kleinlich */
+  const zahl = kZahl(kgOut(d.vol), 0);
+  let gr = 176;
+  const setzGross = () => { g.font = '800 ' + gr + 'px ' + SANS; };
+  setzGross();
+  while(gr > 100 && g.measureText(zahl).width + 120 > W - 2 * P){ gr -= 8; setzGross(); }
+  if('letterSpacing' in g) g.letterSpacing = '-0.035em';
+  g.fillStyle = akzent;
+  g.fillText(zahl, P - 4, 540);
+  const zb = g.measureText(zahl).width;
+  if('letterSpacing' in g) g.letterSpacing = '0px';
+  g.font = '600 44px ' + SANS;
+  g.fillStyle = F.mut;
+  g.fillText(einheit, P - 4 + zb + 18, 540);
+
+  /* Zweite Zeile: Vergleich mit dem letzten gleichen Training */
+  g.font = '600 34px ' + SANS;
+  let cx = P;
+  if(d.pct != null){
+    const t1 = (d.pct >= 0 ? '+' : '−') + Math.abs(d.pct).toFixed(1) + '%';
+    g.fillStyle = d.pct >= 0 ? F.up : F.neutral;
+    g.fillText(t1, cx, 600);
+    cx += g.measureText(t1).width + 14;
+    g.fillStyle = F.mut;
+    g.font = '400 26px ' + SANS;
+    g.fillText('vs last ' + karteKuerzen(g, s.name || 'workout', 380) + ' · ' + kDatum(d.vorherDatum), cx, 600);
+  }else{
+    g.fillStyle = F.mut;
+    g.font = '400 26px ' + SANS;
+    g.fillText('first ' + karteKuerzen(g, s.name || 'workout', 480) + ' on record', cx, 600);
+  }
+
+  /* --- Dauer, Sätze, Pause --- */
+  const lin = y => { g.fillStyle = F.linie; g.fillRect(P, y, W - 2 * P, 1); };
+  lin(664);
+  const sp = (beschriftung, wert, x0) => {
+    g.font = '400 23px ' + SANS;
+    g.fillStyle = F.mut;
+    g.fillText(beschriftung, x0, 714);
+    g.font = '600 36px ' + SANS;
+    g.fillStyle = F.fg;
+    g.fillText(wert, x0, 760);
+  };
+  sp('Duration', kDauer(d.dauer), P);
+  sp('Working sets', String(d.sets), P + 300);
+  /* Ohne Pausenwerte (ältere Trainings) steht hier die Zahl der
+     Wiederholungen statt eines Strichs.                                    */
+  if(d.rest.n) sp('Avg rest', kPause(d.rest.avg), P + 600);
+  else sp('Total reps', String(sessionReps(s)), P + 600);
+  lin(812);
+
+  /* --- Beste Sätze --- */
+  g.font = '400 23px ' + SANS;
+  g.fillStyle = F.mut;
+  g.fillText('Top sets', P, 862);
+  const zeilen = d.best.slice(0, 3);
+  /* Alle Werte an derselben Kante, die PR-Plakette daneben — sonst stehen
+     die Zahlen je nach Zeile versetzt.                                     */
+  const platzPR = zeilen.some(b => b.pr) ? 84 : 0;
+  let y = 908;
+  for(const b of zeilen){
+    g.font = '600 30px ' + SANS;
+    g.fillStyle = F.fg;
+    const wert = kGewicht(b.w) + ' ' + einheit + ' × ' + b.r;
+    g.textAlign = 'right';
+    g.fillText(wert, W - P - platzPR, y);
+    const wb = g.measureText(wert).width;
+    g.textAlign = 'left';
+    if(b.pr) karteChip(g, W - P - 66, y - 10, 'PR', F.up, hell ? 0.13 : 0.2, true);
+    g.font = '400 30px ' + SANS;
+    g.fillStyle = F.fg;
+    g.fillText(karteKuerzen(g, b.name, W - 2 * P - wb - platzPR - 30), P, y);
+    y += 46;
+  }
+  if(!zeilen.length){
+    g.font = '400 26px ' + SANS;
+    g.fillStyle = F.mut;
+    g.fillText('No working sets logged.', P, 908);
+  }
+
+  /* --- Fuß --- */
+  g.font = '400 21px ' + SANS;
+  g.fillStyle = F.mut;
+  g.textAlign = 'left';
+  g.fillText(kDatum(s.date), P, 1040);
+  g.textAlign = 'right';
+  g.fillText('tracked with Oryol Fit', W - P, 1040);
+  g.textAlign = 'left';
+  return true;
+}
+
+/* ---------- Karte: Dialog, Teilen, Sichern ---------- */
+function karteStatus(t, art){
+  const el = $('#cardStatus');
+  if(!el) return;
+  el.innerHTML = t ? '<span class="' + (art || 'mut') + '">' + t + '</span>' : '';
+}
+function karteMalen(){
+  const s = KARTE.session;
+  if(!s) return;
+  zeichneKarte($('#cardCanvas'), s, {look:KARTE.look});
+}
+async function openKarte(s){
+  if(!s) return;
+  KARTE.session = s;
+  $$('[data-cardlook]').forEach(el => el.classList.toggle('on', el.dataset.cardlook === KARTE.look));
+  $('#cardSub').textContent = (s.name || 'Training') + ' · ' + fmtDay(s.date);
+  $('#cardModal').classList.add('on');
+  karteStatus('');
+  /* Schrift bereitstellen, sonst malt die Zeichenfläche eine Ersatzschrift */
+  try{ if(document.fonts && document.fonts.load) await document.fonts.load('52px "Oryol Mark"'); }
+  catch(e){}
+  karteMalen();
+}
+function closeKarte(){
+  $('#cardModal').classList.remove('on');
+  KARTE.session = null;
+}
+function karteName(){
+  const s = KARTE.session;
+  if(!s) return 'oryol-fit.png';
+  const slug = String(s.name || 'workout').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return 'oryol-fit-' + (slug || 'workout') + '-' + s.date + '.png';
+}
+function karteBlob(){
+  return new Promise((auf, ab) => {
+    const cv = $('#cardCanvas');
+    if(!cv || !cv.toBlob) return ab(new Error('Zeichenfläche nicht verfügbar'));
+    cv.toBlob(b => b ? auf(b) : ab(new Error('Bild konnte nicht erzeugt werden')), 'image/png');
+  });
+}
+function karteSpeichern(blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = karteName();
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+async function karteTeilen(){
+  try{
+    const blob = await karteBlob();
+    const datei = new File([blob], karteName(), {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[datei]}) && navigator.share){
+      try{
+        await navigator.share({files:[datei]});
+        karteStatus('Geteilt.', 'up');
+      }catch(e){
+        if(!e || e.name !== 'AbortError') karteStatus('Teilen abgebrochen.');
+        else karteStatus('');
+      }
+      return;
+    }
+    karteSpeichern(blob);
+    karteStatus('Dein Gerät kennt keinen Teilen-Dialog — das Bild ist stattdessen im Download-Ordner.', 'up');
+  }catch(e){
+    karteStatus('Hat nicht geklappt: ' + esc(e.message), 'down');
+  }
+}
+async function karteHerunterladen(){
+  try{
+    karteSpeichern(await karteBlob());
+    karteStatus('Gespeichert: ' + esc(karteName()), 'up');
+  }catch(e){
+    karteStatus('Hat nicht geklappt: ' + esc(e.message), 'down');
+  }
+}
+async function karteKopieren(){
+  try{
+    const blob = await karteBlob();
+    if(!navigator.clipboard || !window.ClipboardItem)
+      throw new Error('Dieser Browser kann keine Bilder in die Zwischenablage legen.');
+    await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+    karteStatus('In der Zwischenablage — jetzt einfügen.', 'up');
+  }catch(e){
+    karteStatus('Hat nicht geklappt: ' + esc(e.message), 'down');
+  }
+}
+function wireKarte(){
+  $('#cardClose').onclick = closeKarte;
+  $('#cardModal').addEventListener('click', e => { if(e.target.id === 'cardModal') closeKarte(); });
+  $$('[data-cardlook]').forEach(el => el.addEventListener('click', () => {
+    $$('[data-cardlook]').forEach(x => x.classList.remove('on'));
+    el.classList.add('on');
+    KARTE.look = el.dataset.cardlook;
+    karteMalen();
+  }));
+  $('#cardShare').onclick = karteTeilen;
+  $('#cardDownload').onclick = karteHerunterladen;
+  $('#cardCopy').onclick = karteKopieren;
+}
+/* ==========================================================================
    Körperdaten
    ========================================================================== */
 function bodySorted(){ return live('body').slice().sort((a,b) => a.date < b.date ? -1 : 1); }
@@ -4131,6 +4573,7 @@ function boot(){
   wireWorkout(); wireExercises(); wireLog(); wireCardio();
   wireTemplates(); wireCalendar(); wireGoals(); wireReview();
   wireVolume(); wireProgress(); wireRest(); wireCalc(); wireBody(); wireSettings();
+  wireKarte();
 
   $$('#v-dashboard [data-dash]').forEach(b => b.onclick = () => {
     S.dashWin = num(b.dataset.dash);
